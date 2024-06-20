@@ -453,7 +453,7 @@ MonoBehaviour:
   tanks:
   - {fileID: 1851172584}
   - {fileID: 2110088328}
-  speed: 1
+  speed: 0.025
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0

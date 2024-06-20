@@ -7,9 +7,9 @@ using UnityEngine;
 /*
     The big 2 problems here are that:
     - sometimes the latestInputTick is staying at 0
-    - if latest input tick is too low, we try to accessinputs out of bounds when predicting input at end of script
+    - if latest input tick is too low, we try to access inputs out of bounds when predicting input at end of script
 */
-
+ 
 public class ClientRollback : MonoBehaviour
 {
     //Global singleton reference
@@ -38,8 +38,13 @@ public class ClientRollback : MonoBehaviour
         {
             for(int j = 0; j < MAX_PLAYERS; j++)
             {
+                states[i] = new CharacterData[MAX_PLAYERS];  // Initialize each inner array
                 inputs[i] = new PlayerInput[MAX_PLAYERS];  // Initialize each inner array
             }
+        }
+        for(int i = 0; i < MAX_PLAYERS; i++)
+        {
+            latestInputTick[i] = 0;
         }
     }
     
@@ -48,6 +53,7 @@ public class ClientRollback : MonoBehaviour
     {
         currentTick++;
 
+        //Increments states and inputs buffers
         for(int i = 0; i < RB_STATES - 1; i++)
         {
             states[i+1] = states[i];
@@ -57,7 +63,7 @@ public class ClientRollback : MonoBehaviour
         uint rollbackTick = ProcessArrivedInput(arrivedInputs);
 
         //Add the current local player input to the inputs array here
-        inputs[0][ClientConnection.Instance.localID] = new PlayerInput
+        inputs[0][ClientConnection.Instance.localID - 1] = new PlayerInput
         {
             predicted = true,
             tick = currentTick,
@@ -97,11 +103,11 @@ public class ClientRollback : MonoBehaviour
         }
 
         //For each player, fill all buffer inputs from present back to last recieved confirmed input and predict they will continue the same inputs
-        for(int i = 1; i <= MAX_PLAYERS; i++)
+        for(int i = 0; i < MAX_PLAYERS; i++)
         {
-            if(currentTick - latestInputTick[i] <= RB_STATES)
+            if(currentTick - latestInputTick[i] < RB_STATES)
             {
-                for(int j = 0; j < currentTick - latestInputTick[i]; i++)
+                for(int j = 0; j < currentTick - latestInputTick[i]; j++)
                 {
                     inputs[j][i] = inputs[currentTick - latestInputTick[i]][i];
                     inputs[j][i].predicted = true;
@@ -109,9 +115,9 @@ public class ClientRollback : MonoBehaviour
             }
             else
             {
-                for(int j = 0; j < RB_STATES; i++)
+                for(int j = 0; j < RB_STATES; j++)
                 {
-                    inputs[j][i] = inputs[currentTick - latestInputTick[i]][i];
+                    inputs[j][i] = inputs[RB_STATES - 1][i];
                     inputs[j][i].predicted = true;
                 }
             }

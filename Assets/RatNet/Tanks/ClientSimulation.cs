@@ -13,7 +13,7 @@ using UnityEngine.Scripting.APIUpdating;
 - CAN access the data struct for each player (as well as a "global" data struct for things such as projectiles and other networked non-player objects)
 - MUST act on one of these otherwise it doesn't need to be rollback
 
-- SHOULD use some form of input delay to make rollbacks less often?
+- SHOULD use some form of input delay to make rollbacks less often? 
 
 */
 
@@ -74,7 +74,7 @@ public class ClientSimulation : MonoBehaviour
             }
             if(inputs[i].A)
             {
-                moveDir.x += 1;
+                moveDir.x -= 1;
             }
 
             moveDir.Normalize();
@@ -92,6 +92,7 @@ public class ClientSimulation : MonoBehaviour
         //Record current game in the given tick
         for(int i = 0; i < tanks.Length; i++)
         {
+            //Debug.Log(ClientRollback.Instance.states[ClientRollback.Instance.currentTick - recordTick][i + 1]);
             ClientRollback.Instance.states[ClientRollback.Instance.currentTick - recordTick][i + 1].position = tanks[i].position;
             ClientRollback.Instance.states[ClientRollback.Instance.currentTick - recordTick][i + 1].rotation = tanks[i].rotation;
         }
@@ -111,6 +112,7 @@ public class ClientSimulation : MonoBehaviour
     //This is called every frame with the given tick as the farthest to rollback to
     public void RollBack(uint rollbackTick)
     {
+        if(ClientRollback.Instance.currentTick - rollbackTick > 0) Debug.Log("WHAAA " + rollbackTick);
         if(rollbackTick == ClientRollback.Instance.currentTick)
         {
             Simulate(ClientRollback.Instance.inputs[0]);
@@ -128,7 +130,7 @@ public class ClientSimulation : MonoBehaviour
             //the actual "current state" isnt stored yet, it jsut is. the most recent saved state is what was seen last frame usually
             //Saved game state shoudl always be "what occured as a result of the input from the tick before"
 
-            Simulate(ClientRollback.Instance.inputs[i]);
+            Simulate(ClientRollback.Instance.inputs[ClientRollback.Instance.currentTick - i]);
 
             //Set state for i + 1, newly updated for the rolled back changes
             if(i < ClientRollback.Instance.currentTick)

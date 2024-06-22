@@ -13,7 +13,7 @@ using UnityEngine.Scripting.APIUpdating;
 - CAN access the data struct for each player (as well as a "global" data struct for things such as projectiles and other networked non-player objects)
 - MUST act on one of these otherwise it doesn't need to be rollback
 
-- SHOULD use some form of input delay to make rollbacks less often? 
+- SHOULD use some form of input delay to make rollbacks less often?  
 
 */
 

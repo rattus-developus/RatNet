@@ -1,6 +1,6 @@
 using UnityEngine;
 using Unity.Collections;
-using Unity.Networking.Transport;
+using Unity.Networking.Transport; 
 
 /* To Do:
 - Set up client-server handshake with ID (ensure no data is sent besides ID until handshake is done)
@@ -11,14 +11,14 @@ namespace RatNet
 {
     public class ClientConnection : MonoBehaviour
     {
-        //Global singleton reference
+        //Global singleton reference 
         public static ClientConnection Instance;
 
         NetworkDriver m_Driver;
         NetworkConnection m_Connection;
 
         //The local player id ranging from 1 --> MAX_PLAYERS
-        public byte localID = 1;
+        public byte localID = 0;
 
         void Awake()
         {
@@ -42,6 +42,7 @@ namespace RatNet
 
         void FixedUpdate()
         {
+            /*
             PlayerInput[] dummyInputs = new PlayerInput[1];
 
             dummyInputs[0] = new PlayerInput
@@ -57,7 +58,8 @@ namespace RatNet
 
             ClientRollback.Instance.Simulate(dummyInputs);
 
-            return;
+            */
+
             m_Driver.ScheduleUpdate().Complete();
 
             //Wait until connection object is succesfully created (not necessarily connected to server)

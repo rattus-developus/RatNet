@@ -13,10 +13,10 @@ using UnityEngine;
 public class ClientRollback : MonoBehaviour
 {
     //Global singleton reference
-    public static ClientRollback Instance;
+    public static ClientRollback Instance; 
 
-    const int MAX_PLAYERS = 8;
-    const int RB_STATES = 16;
+    public const int MAX_PLAYERS = 16;
+    public const int RB_STATES = 16;
 
     public uint currentTick = 0;
 

@@ -30,6 +30,11 @@ public class ClientRollback : MonoBehaviour
     //Store the newest recieved tick from each player, so we know where to start predicting their input in the buffer
     uint[] latestInputTick = new uint[MAX_PLAYERS];
 
+    void FixedUpdate()
+    {
+        //if(currentTick >= 1250) Debug.Log("AJSDNSKAJDNASKLBFLHDSAFHDSKLGSDKJHBFBLAKF");
+    }
+
     void Awake()
     {
         Instance = this;
@@ -49,23 +54,30 @@ public class ClientRollback : MonoBehaviour
     }
     
     //This will be called by the client connection manager once all netcode messages have been processed into an array of inputs
-    public void Simulate(PlayerInput[] arrivedInputs)
+    public PlayerInput Simulate(PlayerInput[] arrivedInputs)
     {
         currentTick++;
 
         //Increments states and inputs buffers
+        CharacterData[][] newStates = new CharacterData[RB_STATES][];
+        PlayerInput[][] newInputs = new PlayerInput[RB_STATES][];
+        newStates[0] = new CharacterData[MAX_PLAYERS];
+        newInputs[0] = new PlayerInput[MAX_PLAYERS];
         for(int i = 0; i < RB_STATES - 1; i++)
         {
-            states[i+1] = states[i];
-            inputs[i+1] = inputs[i];
+            newStates[i+1] = states[i];
+            newInputs[i+1] = inputs[i];
         }
+        states = newStates;
+        inputs = newInputs;
 
         uint rollbackTick = ProcessArrivedInput(arrivedInputs);
-
+        
+        
         //Add the current local player input to the inputs array here
         inputs[0][ClientConnection.Instance.localID - 1] = new PlayerInput
         {
-            predicted = true,
+            predicted = false,
             tick = currentTick,
             id = ClientConnection.Instance.localID,
             W = Input.GetKey(KeyCode.W),
@@ -73,12 +85,15 @@ public class ClientRollback : MonoBehaviour
             S = Input.GetKey(KeyCode.S),
             D = Input.GetKey(KeyCode.D),
         };
+        
 
         //Record currnet state for later rollback
         ClientSimulation.Instance.RecordState(currentTick);
 
         //Rollback and simulate up to current tick here
         ClientSimulation.Instance.RollBack(rollbackTick);
+
+        return inputs[0][ClientConnection.Instance.localID - 1];
     }
     
     //This function is assuming that we never recieve one tick without it's previous.
@@ -91,8 +106,22 @@ public class ClientRollback : MonoBehaviour
         //Here we recieve an array of all recieved inputs this tick, each with a player ID and tick
         foreach(PlayerInput newInput in arrivedInputs)
         {
+            if(newInput.tick > currentTick)
+            {
+                Debug.Log("Tick is from the future! Cannot comprehend!");
+                continue;
+            }
             //Discard input that is too old, preventing rollback
-            if(newInput.tick <= (currentTick - RB_STATES)) continue;
+            if(newInput.tick <= (currentTick - RB_STATES))
+            {
+                /*
+                Debug.Log("Tick is too old! Expired!");
+                Debug.Log("Current Tick: " + currentTick);
+                Debug.Log("Tick: " + newInput.tick);
+                Debug.Log("ID: " + newInput.id);
+                */
+                continue;
+            }
             //Store the oldest recieved tick, so we know where to revert back to
             if(newInput.tick < rollbackTick) rollbackTick = newInput.tick;
             //Store the newest recieved tick from each player, so we know where to start predicting their input in the buffer
@@ -102,9 +131,17 @@ public class ClientRollback : MonoBehaviour
             inputs[currentTick - newInput.tick][newInput.id - 1].predicted = false;
         }
 
+        
         //For each player, fill all buffer inputs from present back to last recieved confirmed input and predict they will continue the same inputs
         for(int i = 0; i < MAX_PLAYERS; i++)
         {
+            if(!ClientConnection.Instance.activePlayers[i]) continue;
+
+            if(i == ClientConnection.Instance.localID - 1)
+            {
+                continue;
+            }
+
             if(currentTick - latestInputTick[i] < RB_STATES)
             {
                 for(int j = 0; j < currentTick - latestInputTick[i]; j++)
@@ -122,6 +159,7 @@ public class ClientRollback : MonoBehaviour
                 }
             }
         }
+        
 
         return rollbackTick;
     }

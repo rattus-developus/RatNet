@@ -44,8 +44,9 @@ public class ClientSimulation : MonoBehaviour
 
     //An array containing all player objects. The size of the array is the number of current players.
     //When a new player joins, a new tank should be added
-    [SerializeField] Transform[] tanks;
-    [SerializeField] float speed;
+    [SerializeField] GameObject tankPrefab;
+    Transform[] tanks = new Transform[ClientRollback.MAX_PLAYERS];
+    [SerializeField] float speed = 5f;
 
     void Awake()
     {
@@ -58,11 +59,14 @@ public class ClientSimulation : MonoBehaviour
     {
         for(int i = 0; i < tanks.Length; i++)
         {
+            if(!ClientConnection.Instance.activePlayers[i]) continue;
+
             //Handle inputs
             Vector2 moveDir = Vector2.zero;
             if(inputs[i].W)
             {
                 moveDir.y += 1;
+                //Debug.Log("forward");
             }
             if(inputs[i].S)
             {
@@ -82,8 +86,13 @@ public class ClientSimulation : MonoBehaviour
 
             tanks[i].position = new Vector3(tanks[i].position.x + moveDir.x, tanks[i].position.y, tanks[i].position.z + moveDir.y);
 
-            //Debug.Log("Here");
-            //Debug.Log(moveDir);
+            /*
+            if(i == 0)
+            {
+                Debug.Log(moveDir);
+                Debug.Log(tanks[i].position);
+            }
+            */
         }
     }
 
@@ -92,6 +101,8 @@ public class ClientSimulation : MonoBehaviour
         //Record current game in the given tick
         for(int i = 0; i < tanks.Length; i++)
         {
+            if(!ClientConnection.Instance.activePlayers[i]) continue;
+            if(tanks[i] == null) continue;
             //Debug.Log(ClientRollback.Instance.states[ClientRollback.Instance.currentTick - recordTick][i + 1]);
             ClientRollback.Instance.states[ClientRollback.Instance.currentTick - recordTick][i + 1].position = tanks[i].position;
             ClientRollback.Instance.states[ClientRollback.Instance.currentTick - recordTick][i + 1].rotation = tanks[i].rotation;
@@ -104,6 +115,7 @@ public class ClientSimulation : MonoBehaviour
         //Currently this is just the tanks positions and rotations
         for(int i = 0; i < tanks.Length; i++)
         {
+            if(!ClientConnection.Instance.activePlayers[i]) continue;
             tanks[i].position = ClientRollback.Instance.states[ClientRollback.Instance.currentTick - rollbackTick][i + 1].position;
             tanks[i].rotation = ClientRollback.Instance.states[ClientRollback.Instance.currentTick - rollbackTick][i + 1].rotation;
         }
@@ -112,9 +124,23 @@ public class ClientSimulation : MonoBehaviour
     //This is called every frame with the given tick as the farthest to rollback to
     public void RollBack(uint rollbackTick)
     {
-        if(ClientRollback.Instance.currentTick - rollbackTick > 0) Debug.Log("WHAAA " + rollbackTick);
+        for(int i = 0; i < ClientConnection.Instance.activePlayers.Length; i++)
+        {
+            if(ClientConnection.Instance.activePlayers[i] && tanks[i] == null)
+            {
+                //Add player
+                tanks[i] = Instantiate(tankPrefab).transform;
+                //tanks[i].name = "Tank " + (i + 1);
+            }
+            else if(!ClientConnection.Instance.activePlayers[i] && tanks[i] != null)
+            {
+                Destroy(tanks[i].gameObject);
+            }
+        }
+
         if(rollbackTick == ClientRollback.Instance.currentTick)
         {
+            //Debug.Log("sim1");
             Simulate(ClientRollback.Instance.inputs[0]);
             return;
         }
@@ -130,7 +156,8 @@ public class ClientSimulation : MonoBehaviour
             //the actual "current state" isnt stored yet, it jsut is. the most recent saved state is what was seen last frame usually
             //Saved game state shoudl always be "what occured as a result of the input from the tick before"
 
-            Simulate(ClientRollback.Instance.inputs[ClientRollback.Instance.currentTick - i]);
+            //Debug.Log("sim2");
+            Simulate(ClientRollback .Instance.inputs[ClientRollback.Instance.currentTick - i]);
 
             //Set state for i + 1, newly updated for the rolled back changes
             if(i < ClientRollback.Instance.currentTick)

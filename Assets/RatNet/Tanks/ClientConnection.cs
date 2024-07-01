@@ -13,7 +13,6 @@ namespace RatNet
 {
     public class ClientConnection : MonoBehaviour
     {
-        [SerializeField] bool active;
         [SerializeField] bool syncTime;
 
         //Global singleton reference 
@@ -116,7 +115,6 @@ namespace RatNet
                     else if(header == NetworkHeaders.SERVER_INPUTS)
                     {
                         inputsThisTick++;
-                        bool w = false;
                         recievedInputs.Add(new PlayerInput
                         {
                             /*

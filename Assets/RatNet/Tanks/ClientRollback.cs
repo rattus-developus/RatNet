@@ -16,7 +16,7 @@ public class ClientRollback : MonoBehaviour
     public static ClientRollback Instance; 
 
     public const int MAX_PLAYERS = 16;
-    public const int RB_STATES = 16;
+    public const int RB_STATES = 32;
 
     public uint currentTick = 0;
 
@@ -109,17 +109,14 @@ public class ClientRollback : MonoBehaviour
             if(newInput.tick > currentTick)
             {
                 Debug.Log("Tick is from the future! Cannot comprehend!");
+                Debug.Log(newInput.tick - currentTick + " ticks into the future.");
                 continue;
             }
             //Discard input that is too old, preventing rollback
             if(newInput.tick <= (currentTick - RB_STATES))
             {
-                /*
                 Debug.Log("Tick is too old! Expired!");
-                Debug.Log("Current Tick: " + currentTick);
-                Debug.Log("Tick: " + newInput.tick);
-                Debug.Log("ID: " + newInput.id);
-                */
+                Debug.Log(currentTick - newInput.tick + " ticks in the past.");
                 continue;
             }
             //Store the oldest recieved tick, so we know where to revert back to

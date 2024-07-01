@@ -86,7 +86,6 @@ namespace RatNet
     public class ServerConnection : MonoBehaviour
     {
         public static ServerConnection Instance;
-        [SerializeField] bool active;
         //The main driver, how we will interact with netcode
         NetworkDriver m_Driver;
         //The list of all connections

@@ -425,7 +425,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b31a42720ea918a4f912869f8963ba4c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  active: 0
   syncTime: 0
   localID: 0
   activePlayers: 00000000000000000000000000000000
@@ -469,9 +468,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fcc7637725f9c214e858f74a8e57d682, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  active: 1
-  useTrafficSimulator: 0
-  simulatedDelayMs: 75
+  useTrafficSimulator: 1
+  simulatedDelayMs: 135
   currentTick: 0
 --- !u!1 &832575517
 GameObject:

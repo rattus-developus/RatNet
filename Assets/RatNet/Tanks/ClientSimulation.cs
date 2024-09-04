@@ -46,7 +46,7 @@ public class ClientSimulation : MonoBehaviour
     //When a new player joins, a new tank should be added
     [SerializeField] GameObject tankPrefab;
     Transform[] tanks = new Transform[ClientRollback.MAX_PLAYERS];
-    [SerializeField] float speed = 5f;
+    [SerializeField] float speed = 0.0625f;
 
     void Awake()
     {
@@ -158,6 +158,65 @@ public class ClientSimulation : MonoBehaviour
 
             //Debug.Log("sim2");
             Simulate(ClientRollback .Instance.inputs[ClientRollback.Instance.currentTick - i]);
+
+            //Set state for i + 1, newly updated for the rolled back changes
+            if(i < ClientRollback.Instance.currentTick)
+            RecordState(i+1);
+        }
+    }
+
+    //A rollback due to a recieve game state from the server
+    public void StateRollBack(uint rollbackTick, CharacterData[] states)
+    {
+        if(ClientRollback.Instance.currentTick - rollbackTick > ClientRollback.RB_STATES)
+        {
+            Debug.Log("Attempting to rollback too far, failed.");
+            return;
+        }
+        
+        Debug.Log("state rollback");
+
+        //Recreate recieved game state
+        foreach(CharacterData cd in states)
+        {
+            byte id = cd.id;
+            ClientRollback.Instance.states[ClientRollback.Instance.currentTick - rollbackTick][id] = cd;
+        }
+
+        for(int i = 0; i < ClientConnection.Instance.activePlayers.Length; i++)
+        {
+            if(ClientConnection.Instance.activePlayers[i] && tanks[i] == null)
+            {
+                //Add player
+                tanks[i] = Instantiate(tankPrefab).transform;
+                //tanks[i].name = "Tank " + (i + 1);
+            }
+            else if(!ClientConnection.Instance.activePlayers[i] && tanks[i] != null)
+            {
+                Destroy(tanks[i].gameObject);
+            }
+        }
+
+        if(rollbackTick == ClientRollback.Instance.currentTick)
+        {
+            //Debug.Log("sim1");
+            Simulate(ClientRollback.Instance.inputs[0]);
+            return;
+        }
+
+        SetState(rollbackTick);
+
+        //Simulate up through current tick, recording game data at each tick along the way
+        for(uint i = rollbackTick; i <= ClientRollback.Instance.currentTick; i++)
+        {
+            //For each player:
+            //Respond to the given tick's input
+            //Save game state to the tick just simulated + 1
+            //the actual "current state" isnt stored yet, it jsut is. the most recent saved state is what was seen last frame usually
+            //Saved game state shoudl always be "what occured as a result of the input from the tick before"
+
+            //Debug.Log("sim2");
+            Simulate(ClientRollback.Instance.inputs[ClientRollback.Instance.currentTick - i]);
 
             //Set state for i + 1, newly updated for the rolled back changes
             if(i < ClientRollback.Instance.currentTick)

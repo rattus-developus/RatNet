@@ -30,6 +30,8 @@ namespace RatNet
 
         NetworkPipeline rollbackPipeline;
         NetworkPipeline rpcPipeline;
+
+        public const int PAST_INPUTS_COUNT = 4;
         
 
         void Awake()
@@ -152,6 +154,28 @@ namespace RatNet
                         Debug.Log(timeSinceTickMs);
                         ClientRollback.Instance.currentTick = serverTick + (uint)(timeSinceTickMs / (Time.fixedDeltaTime * 1000f));
                     }
+                    else if(header == NetworkHeaders.GAME_STATE_ROLLBACK)
+                    {
+                        uint statesTick = stream.ReadUInt();
+                        CharacterData[] states = new CharacterData[ClientRollback.MAX_PLAYERS];
+
+                        for(int i = 0; i < ClientRollback.MAX_PLAYERS; i++)
+                        {
+                            if(!activePlayers[i]) continue;
+
+                            states[i].id = stream.ReadByte();
+
+                            states[i].position.x = stream.ReadFloat();
+                            states[i].position.y = stream.ReadFloat();
+                            states[i].position.z = stream.ReadFloat();
+
+                            states[i].rotation.x = stream.ReadFloat();
+                            states[i].rotation.y = stream.ReadFloat();
+                            states[i].rotation.z = stream.ReadFloat();
+                            states[i].rotation.w = stream.ReadFloat();
+                        }
+                        ClientSimulation.Instance.StateRollBack(statesTick, states);
+                    }
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
                 {
@@ -192,6 +216,19 @@ namespace RatNet
                 inputWriter.WriteByte(localInput.S? (byte)1 : (byte)0);
                 inputWriter.WriteByte(localInput.D? (byte)1 : (byte)0);
                 m_Driver.EndSend(inputWriter);
+
+                for(int i = 1; i <= PAST_INPUTS_COUNT; i++)
+                {
+                    m_Driver.BeginSend(rollbackPipeline, m_Connection, out var pastInputWriter);
+                    pastInputWriter.WriteByte(NetworkHeaders.CLIENT_INPUTS);
+                    pastInputWriter.WriteByte(localID);
+                    pastInputWriter.WriteUInt((uint)ClientRollback.Instance.currentTick - (uint)i);
+                    pastInputWriter.WriteByte(ClientRollback.Instance.inputs[i][localID].W? (byte)1 : (byte)0);
+                    pastInputWriter.WriteByte(ClientRollback.Instance.inputs[i][localID].A? (byte)1 : (byte)0);
+                    pastInputWriter.WriteByte(ClientRollback.Instance.inputs[i][localID].S? (byte)1 : (byte)0);
+                    pastInputWriter.WriteByte(ClientRollback.Instance.inputs[i][localID].D? (byte)1 : (byte)0);
+                    m_Driver.EndSend(pastInputWriter);
+                }
             }
 
             if(syncTime)

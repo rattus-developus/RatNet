@@ -391,8 +391,9 @@ GameObject:
   - component: {fileID: 477832700}
   - component: {fileID: 477832699}
   - component: {fileID: 477832702}
+  - component: {fileID: 477832703}
   m_Layer: 0
-  m_Name: Network
+  m_Name: Network Manager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -468,9 +469,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fcc7637725f9c214e858f74a8e57d682, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  useTrafficSimulator: 1
-  simulatedDelayMs: 135
-  currentTick: 0
+  useTrafficSimulator: 0
+  simulatedDelayMs: 0
+  packetDropPercent: 10
+  realtimeTick: 0
+  playerCount: 0
+--- !u!114 &477832703
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 477832695}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb043d687899f3843b23fd0222b514c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  tankPrefab: {fileID: 4323191406875991361, guid: fcf78f6c6f27f0641a944c41274aea57,
+    type: 3}
+  tanks:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  speed: 0.0625
+  tickAwaitingInputs: 1
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0

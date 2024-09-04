@@ -41,11 +41,15 @@ public class ClientRollback : MonoBehaviour
 
         for(int i = 0; i < RB_STATES; i++)
         {
+            states[i] = new CharacterData[MAX_PLAYERS];  // Initialize each inner array
+            inputs[i] = new PlayerInput[MAX_PLAYERS];  // Initialize each inner array
+            /*
             for(int j = 0; j < MAX_PLAYERS; j++)
             {
                 states[i] = new CharacterData[MAX_PLAYERS];  // Initialize each inner array
                 inputs[i] = new PlayerInput[MAX_PLAYERS];  // Initialize each inner array
             }
+            */
         }
         for(int i = 0; i < MAX_PLAYERS; i++)
         {
@@ -109,14 +113,14 @@ public class ClientRollback : MonoBehaviour
             if(newInput.tick > currentTick)
             {
                 Debug.Log("Tick is from the future! Cannot comprehend!");
-                Debug.Log(newInput.tick - currentTick + " ticks into the future.");
+                //Debug.Log(newInput.tick - currentTick + " ticks into the future.");
                 continue;
             }
             //Discard input that is too old, preventing rollback
             if(newInput.tick <= (currentTick - RB_STATES))
             {
                 Debug.Log("Tick is too old! Expired!");
-                Debug.Log(currentTick - newInput.tick + " ticks in the past.");
+                //Debug.Log(currentTick - newInput.tick + " ticks in the past.");
                 continue;
             }
             //Store the oldest recieved tick, so we know where to revert back to

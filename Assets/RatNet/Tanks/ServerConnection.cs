@@ -50,12 +50,12 @@ Message byte headers
     - tick (uint)
     - WASD (4 bytes)
 
-6 - game states package
+6 - game state package
     - header (byte)
-    - numInputs (byte)
+      tick (uint)
+    - numInputs (byte) (currently always sending state of all players, if optimizing in the future then change to only active players states)
     - states (variable)
         * playerID (byte)
-        * tick (uint)
         * position (3 floats)
         * rotation (4 floats)
 
@@ -76,7 +76,7 @@ public struct NetworkHeaders
     public const byte DISCONNECTION = 3;
     public const byte CLIENT_INPUTS = 4;
     public const byte SERVER_INPUTS = 5;
-    public const byte GAME_STATE = 6;
+    public const byte GAME_STATE_ROLLBACK = 6;
     public const byte TIME_REQUEST = 7;
     public const byte TIME_SYNC = 8;
 }
@@ -89,28 +89,31 @@ namespace RatNet
         //The main driver, how we will interact with netcode
         NetworkDriver m_Driver;
         //The list of all connections
-        NativeList<NetworkConnection> m_Connections;
+        public NativeList<NetworkConnection> m_Connections;
         NativeList<PlayerInput> recievedInputs;
-        uint inputsThisTick = 0;
+        uint inputsThisFrame = 0;
 
         [SerializeField] public bool useTrafficSimulator;
         [SerializeField] public int simulatedDelayMs = 75;
+        [SerializeField] public int packetDropPercent = 47;
+
         bool[] playersInGame = new bool[ClientRollback.MAX_PLAYERS];
 
         NetworkPipeline rollbackPipeline;
         NetworkPipeline rpcPipeline;
 
-        public uint currentTick = 0;
+        public uint realtimeTick = 0;
+        public byte playerCount = 0;
 
         void Awake()
-    {
-        Instance = this;
-    }
+        {
+            Instance = this;
+        }
 
         void Start()
         {
             var simSettings = new NetworkSettings();
-            simSettings.WithSimulatorStageParameters(100, 1472, ApplyMode.AllPackets, simulatedDelayMs, simulatedDelayMs / 3, default, 1);
+            simSettings.WithSimulatorStageParameters(100, 1472, ApplyMode.AllPackets, simulatedDelayMs, simulatedDelayMs / 3, 0, packetDropPercent);
 
             //Initialize driver and connection list
             if(useTrafficSimulator)
@@ -158,12 +161,16 @@ namespace RatNet
             }
         }
 
-        void FixedUpdate ()
+        void FixedUpdate()
+        {
+            realtimeTick++;
+        }
+
+        void Update()
         {
             //if(currentTick >= 1250) Debug.Log("AJSDNSKAJDNASKLBFLHDSAFHDSKLGSDKJHBFBLAKF");
 
             m_Driver.ScheduleUpdate().Complete();
-            currentTick++;
 
             // Clean up connections.
             for (int i = 0; i < m_Connections.Length; i++)
@@ -182,6 +189,7 @@ namespace RatNet
             {
                 m_Connections.Add(c);
                 Debug.Log("Accepted a connection.");
+                playerCount++;
 
                 //Find valid ID for new player and send it to them
                 int id = m_Connections.IndexOf(c) + 1;
@@ -194,7 +202,7 @@ namespace RatNet
                         m_Driver.BeginSend(rpcPipeline, m_Connections[i], out var handshakeWriter);
                         handshakeWriter.WriteByte(NetworkHeaders.HANDSHAKE); 
                         handshakeWriter.WriteByte((byte)id);  
-                        handshakeWriter.WriteUInt(currentTick);  
+                        handshakeWriter.WriteUInt(realtimeTick);  
                         for(int j = 0; j < m_Connections.Length; j++)
                         {
                             handshakeWriter.WriteByte(m_Connections[j] == default? (byte)0 : (byte)1);  
@@ -227,7 +235,7 @@ namespace RatNet
                         byte header = stream.ReadByte();
                         if(header == NetworkHeaders.CLIENT_INPUTS)
                         {
-                            inputsThisTick++;
+                            inputsThisFrame++;
                             recievedInputs.Add(new PlayerInput
                             {
                                 /*
@@ -250,7 +258,7 @@ namespace RatNet
                         {
                             m_Driver.BeginSend(rpcPipeline, m_Connections[i], out var timeWriter);
                             timeWriter.WriteByte(NetworkHeaders.TIME_SYNC); 
-                            timeWriter.WriteUInt(currentTick);
+                            timeWriter.WriteUInt(realtimeTick);
                             timeWriter.WriteDouble((DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalMilliseconds);
                             m_Driver.EndSend(timeWriter);
                         }
@@ -258,6 +266,7 @@ namespace RatNet
                     else if (cmd == NetworkEvent.Type.Disconnect)
                     {
                         Debug.Log("Client disconnected from the server.");
+                        playerCount--;
 
                         //Send disconnect event to all players
                         for(int j = 0; j < m_Connections.Length; j++)
@@ -295,7 +304,7 @@ namespace RatNet
                 */
                 if(m_Connections[i] == default) continue;
 
-                for(int j = 0; j < inputsThisTick; j++)
+                for(int j = 0; j < inputsThisFrame; j++)
                 {
                     if(recievedInputs[j].id == i + 1) continue;
 
@@ -313,7 +322,43 @@ namespace RatNet
 
             #endregion
 
-            inputsThisTick = 0;
+            PlayerInput[] newInputs = new PlayerInput[inputsThisFrame];
+            for(int i = 0; i < inputsThisFrame; i++)
+            {
+                newInputs[i] = recievedInputs[i];
+            }
+
+            uint newGameTick = ServerSimulation.Instance.ProcessArrivedInput(newInputs);
+            
+            if(newGameTick != 0)
+            {
+                for (int i = 0; i < m_Connections.Length; i++)
+                {
+                    if(m_Connections[i] == default) continue;
+                    
+
+                    m_Driver.BeginSend(rpcPipeline, m_Connections[i], out var stateWriter);
+                    stateWriter.WriteByte(NetworkHeaders.GAME_STATE_ROLLBACK);
+                    stateWriter.WriteUInt(newGameTick);
+
+                    for(int j = 0; j < playerCount; j++)
+                    {
+                        if(m_Connections[j] == default) continue; 
+                        stateWriter.WriteByte((byte)j);
+                        stateWriter.WriteFloat(ServerSimulation.Instance.tanks[j].position.x);
+                        stateWriter.WriteFloat(ServerSimulation.Instance.tanks[j].position.y);
+                        stateWriter.WriteFloat(ServerSimulation.Instance.tanks[j].position.z);
+
+                        stateWriter.WriteFloat(ServerSimulation.Instance.tanks[j].rotation.x);
+                        stateWriter.WriteFloat(ServerSimulation.Instance.tanks[j].rotation.y);
+                        stateWriter.WriteFloat(ServerSimulation.Instance.tanks[j].rotation.z); 
+                        stateWriter.WriteFloat(ServerSimulation.Instance.tanks[j].rotation.w);
+                    }
+                    m_Driver.EndSend(stateWriter);
+                }
+            }
+
+            inputsThisFrame = 0;
             recievedInputs.Clear();
         }
     }
